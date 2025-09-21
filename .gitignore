@@ -1,0 +1,16 @@
+# Ignore Visual Studio working folder
+.vs/
+*.user
+*.suo
+
+# Build results
+bin/
+obj/
+
+# Temporary files
+*.log
+*.tmp
+
+# Rider / VS Code settings (optional)
+.idea/
+.vscode/
