@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.SqlServer.Server;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
@@ -253,8 +254,19 @@ namespace TranscriptGeneration.Services.Repositories
                     {
                         studentTransctript.FinalGPA = cgpa.ToString();
 
-                        BuildDocument(studentTransctript);
-                        return new GeneralResponse { StatusCode = 200, Message = "Transcript retrieved successfully.", Data = studentTransctript };
+                       var byteFile = BuildDocument(studentTransctript);
+
+                        if (byteFile == null || byteFile.Length == 0)
+                        {
+
+                            return new GeneralResponse { StatusCode = 500, Message = "Error generating transcript PDF." };
+                        }
+                        else
+                        {
+                            string base64 = Convert.ToBase64String(byteFile);
+                            return new GeneralResponse { StatusCode = 200, Message = base64, Data = studentTransctript };
+                        }
+                       // return new GeneralResponse { StatusCode = 200, Message = "Transcript retrieved successfully.", Data = studentTransctript };
                     }
                     else
                     {
@@ -298,9 +310,8 @@ namespace TranscriptGeneration.Services.Repositories
         //        // Data can be set to null or some default value if needed
         //    });
         //}
-
-        //[Obsolete]
-        private void BuildDocument(InstitutionInfo studentTranascript)
+ 
+        private byte[] BuildDocument(InstitutionInfo studentTranascript)
         {
 
 
@@ -738,11 +749,29 @@ namespace TranscriptGeneration.Services.Repositories
                     System.IO.Directory.CreateDirectory("TranscriptDr");
                 }
                 // Save the changes to the PDF.
-                pdfDocument.Save($"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+
+
+                string transcriptPath = Path.Combine(Environment.CurrentDirectory, $"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+                 
+
+                
+
+               // pdfDocument.Save($"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+                pdfDocument.Save(transcriptPath);
+                
                 pdfDocument.Close();
+
+                byte[] fileBytes = File.ReadAllBytes(transcriptPath);
+
+               // string base64 = Convert.ToBase64String(fileBytes);
+
+                return fileBytes;
 
 
             }
+            byte[] fl = Array.Empty<byte>();
+
+            return fl;
         }
 
         private void BuildDocument(string val)
