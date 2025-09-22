@@ -26,7 +26,7 @@ namespace ResultManager.Processor.Models.Entities
         public decimal Score { get; set; }
         public string? Grade { get; set; }
         public int Points { get; set; }
-        public int GradePoints { get; set; }     
+        public decimal GradePoints { get; set; }     
         public string? CreatedBy { get; set; }
         public string? CreatedOn { get; set; }      
         public int Status { get; set; }

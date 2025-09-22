@@ -85,10 +85,30 @@ namespace TranscriptGeneration.Services.Repositories
 
         public async Task<GeneralResponse> GetSemesterResultAsync(string studentId, int SessionId, int DepartmentId, int SemesterId)
         {
+            //var results = await _context.StudentResultRawDetail
+            //                       .Where(c => c.DepartmentId == DepartmentId
+            //                       && c.SessionId ==  SessionId
+            //                       && c.SemesterId ==  SemesterId
+            //                       )
+            //                       .Select(sr => new
+            //                       {
+            //                           sr.MatricNumber,
+            //                           sr.CourseCode,
+            //                           sr.Units,
+            //                           sr.Score,
+            //                           sr.Grade
+            //                       })
+            //                       .OrderBy(x => x.MatricNumber)                                                                                                                                                   //   })
+            //                                                                                                                                              .OrderBy(x => x.MatricNumber)
+            //                       .ToListAsync();
+
 
 
             var lstOfResults = await _context.StudentResultRawDetail
-                .Where(sr => sr.MatricNumber == studentId && sr.SessionId == SessionId && sr.DepartmentId == DepartmentId && sr.SemesterId == SemesterId)
+                .Where(sr => sr.MatricNumber == studentId
+                && sr.SessionId == SessionId &&
+                sr.DepartmentId == DepartmentId
+                && sr.SemesterId == SemesterId)
                 .Select(sr => new
                 {
                     sr.CourseCode,
@@ -254,7 +274,7 @@ namespace TranscriptGeneration.Services.Repositories
                     {
                         studentTransctript.FinalGPA = cgpa.ToString();
 
-                       var byteFile = BuildDocument(studentTransctript);
+                        var byteFile = BuildDocument(studentTransctript);
 
                         if (byteFile == null || byteFile.Length == 0)
                         {
@@ -266,7 +286,7 @@ namespace TranscriptGeneration.Services.Repositories
                             string base64 = Convert.ToBase64String(byteFile);
                             return new GeneralResponse { StatusCode = 200, Message = base64, Data = studentTransctript };
                         }
-                       // return new GeneralResponse { StatusCode = 200, Message = "Transcript retrieved successfully.", Data = studentTransctript };
+                        // return new GeneralResponse { StatusCode = 200, Message = "Transcript retrieved successfully.", Data = studentTransctript };
                     }
                     else
                     {
@@ -310,7 +330,7 @@ namespace TranscriptGeneration.Services.Repositories
         //        // Data can be set to null or some default value if needed
         //    });
         //}
- 
+
         private byte[] BuildDocument(InstitutionInfo studentTranascript)
         {
 
@@ -752,18 +772,18 @@ namespace TranscriptGeneration.Services.Repositories
 
 
                 string transcriptPath = Path.Combine(Environment.CurrentDirectory, $"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
-                 
 
-                
 
-               // pdfDocument.Save($"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+
+
+                // pdfDocument.Save($"TranscriptDr/{studentTranascript.StudentInfo.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
                 pdfDocument.Save(transcriptPath);
-                
+
                 pdfDocument.Close();
 
                 byte[] fileBytes = File.ReadAllBytes(transcriptPath);
 
-               // string base64 = Convert.ToBase64String(fileBytes);
+                // string base64 = Convert.ToBase64String(fileBytes);
 
                 return fileBytes;
 
@@ -1251,35 +1271,12 @@ namespace TranscriptGeneration.Services.Repositories
         public async Task<GeneralResponse> GetDepartmentResultAsync(DepartmentResultDto model)
         {
 
-
-            //var cmulative = await _context.StudentResultCummulative
-            //   .Where(sr => sr.DepartmentId == model.DepartmentId && sr.SessionId == model.SessionId && sr.SemesterId == model.SemesterId)
-            //   .Select(sr => new
-            //   {
-            //       sr.MatricNumber,
-            //       sr.TCR,
-            //       sr.TCE,
-            //       sr.TGP,
-            //       sr.GPA,
-            //       sr.PTCR,
-            //       sr.PTCE, 
-            //       sr.PTGP,
-            //       sr.PGPA,
-            //       sr.CTCR, 
-            //       sr.CTCE,
-            //       sr.CTGP,
-            //       sr.Remarks                   
-
-            //   })
-            //   .OrderBy(sr => sr.MatricNumber)              
-            //   .ToListAsync();
-
             var cmulative = await _context.StudentResultCummulative
-    .Where(sr => sr.DepartmentId == model.DepartmentId
+            .Where(sr => sr.DepartmentId == model.DepartmentId
               && sr.SessionId == model.SessionId
               && sr.SemesterId == model.SemesterId
               && sr.ClassCode == model.ClassCode)
-    .Join(
+        .Join(
         _context.StudentResultFinalSummary,
         sr => sr.MatricNumber,
         fs => fs.MatricNumber,
@@ -1300,6 +1297,7 @@ namespace TranscriptGeneration.Services.Repositories
             sr.CTCE,
             sr.CTGP,
             sr.CGPA,
+            fs.ClassOfDegree,
             sr.Remarks
         }
     )
@@ -1491,19 +1489,19 @@ namespace TranscriptGeneration.Services.Repositories
                 cellIndex = cellIndex + lenScores;
                 //Current
                 row.Cells[cellIndex].MergeRight = 3;
-                row.Cells[cellIndex].AddParagraph("Current GPA");
+                row.Cells[cellIndex].AddParagraph("Previous");
 
                 cellIndex = cellIndex + 3 + 1; // PROMOTE FORWARD 1 CELL
 
                 //Previous 
                 row.Cells[cellIndex].MergeRight = 3;
-                row.Cells[cellIndex].AddParagraph("Previous GPA");
+                row.Cells[cellIndex].AddParagraph("Current");
 
                 cellIndex = cellIndex + 3 + 1; // PROMOTE FORWARD 1 CELL
 
                 //Cummulative 
-                row.Cells[cellIndex].MergeRight = 4;
-                row.Cells[cellIndex].AddParagraph("Cummulative GPA");
+                row.Cells[cellIndex].MergeRight = 3;
+                row.Cells[cellIndex].AddParagraph("Cummulative");
 
 
                 // === Other Header Rows ===
@@ -1555,17 +1553,7 @@ namespace TranscriptGeneration.Services.Repositories
                 }
 
 
-                row.Cells[rowIndex].AddParagraph("TCR");
-                rowIndex = rowIndex + 1;
 
-                row.Cells[rowIndex].AddParagraph("TCE");
-                rowIndex = rowIndex + 1;
-                // sr.TGP,
-                row.Cells[rowIndex].AddParagraph("TGP");
-                rowIndex = rowIndex + 1;
-                //sr.GPA,
-                row.Cells[rowIndex].AddParagraph("GPA");
-                rowIndex = rowIndex + 1;
                 //sr.PTCR,
                 row.Cells[rowIndex].AddParagraph("PTCR");
                 rowIndex = rowIndex + 1;
@@ -1577,6 +1565,17 @@ namespace TranscriptGeneration.Services.Repositories
                 rowIndex = rowIndex + 1;
                 // sr.PGPA,
                 row.Cells[rowIndex].AddParagraph("PGPA");
+                rowIndex = rowIndex + 1;
+                row.Cells[rowIndex].AddParagraph("TCR");
+                rowIndex = rowIndex + 1;
+
+                row.Cells[rowIndex].AddParagraph("TCE");
+                rowIndex = rowIndex + 1;
+                // sr.TGP,
+                row.Cells[rowIndex].AddParagraph("TGP");
+                rowIndex = rowIndex + 1;
+                //sr.GPA,
+                row.Cells[rowIndex].AddParagraph("GPA");
                 rowIndex = rowIndex + 1;
                 //sr.CTCR,
                 row.Cells[rowIndex].AddParagraph("CTCR");
@@ -1671,6 +1670,15 @@ namespace TranscriptGeneration.Services.Repositories
                     }
                     // string formattedTG = item.TCR % 1 == 0 ? item.TCR.ToString("0") : item.TCR.ToString("0.00");
 
+
+                    row.Cells[k].AddParagraph(item.PTCR % 1 == 0 ? item.PTCR.ToString("0") : item.PTCR.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
+                    k++;
+                    row.Cells[k].AddParagraph(item.PTCE % 1 == 0 ? item.PTCE.ToString("0") : item.PTCE.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
+                    k++;
+                    row.Cells[k].AddParagraph(item.PTGP % 1 == 0 ? item.PTGP.ToString("0") : item.PTGP.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
+                    k++;
+                    row.Cells[k].AddParagraph(item.PGPA % 1 == 0 ? item.PGPA.ToString("0") : item.PGPA.ToString("0.##")).Format.Font.Bold = true; //.Format.Alignment = ParagraphAlignment.Center;
+                    k++;
                     row.Cells[k].AddParagraph(item.TCR % 1 == 0 ? item.TCR.ToString("0") : item.TCR.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
 
                     k++;
@@ -1680,14 +1688,6 @@ namespace TranscriptGeneration.Services.Repositories
                     k++;
                     row.Cells[k].AddParagraph(item.GPA % 1 == 0 ? item.GPA.ToString("0") : item.GPA.ToString("0.##")).Format.Font.Bold = true; //.Format.Alignment = ParagraphAlignment.Center;
                     k++;
-                    row.Cells[k].AddParagraph(item.PTCR % 1 == 0 ? item.PTCR.ToString("0") : item.PTCR.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
-                    k++;
-                    row.Cells[k].AddParagraph(item.PTCE % 1 == 0 ? item.PTCE.ToString("0") : item.PTCE.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
-                    k++;
-                    row.Cells[k].AddParagraph(item.PTGP % 1 == 0 ? item.PTGP.ToString("0") : item.PTGP.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
-                    k++;
-                    row.Cells[k].AddParagraph(item.PGPA % 1 == 0 ? item.PGPA.ToString("0") : item.PGPA.ToString("0.##")).Format.Font.Bold = true; //.Format.Alignment = ParagraphAlignment.Center;
-                    k++;
                     row.Cells[k].AddParagraph(item.CTCR % 1 == 0 ? item.CTCR.ToString("0") : item.CTCR.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
                     k++;
                     row.Cells[k].AddParagraph(item.CTCE % 1 == 0 ? item.CTCE.ToString("0") : item.CTCE.ToString("0.##")); //.Format.Alignment = ParagraphAlignment.Center;
@@ -1696,6 +1696,14 @@ namespace TranscriptGeneration.Services.Repositories
                     k++;
                     row.Cells[k].AddParagraph(item.CGPA % 1 == 0 ? item.CGPA.ToString("0") : item.CGPA.ToString("0.##")).Format.Font.Bold = true; //.Format.Alignment = ParagraphAlignment.Center;
                     k++;
+
+                    //string cls = item.ClassOfDegree == null ? "" : item.ClassOfDegree;
+                      
+                    //if (item.Remarks.ToLower() != "pass")
+                    //{
+                    //    cls = cls + item.Remarks;
+                    //}
+
                     row.Cells[k].AddParagraph(item.Remarks).Format.Alignment = ParagraphAlignment.Left;
 
                     rowIndex1 = rowIndex1 + 1;
@@ -1808,7 +1816,7 @@ namespace TranscriptGeneration.Services.Repositories
                 // === Add Header Row ===
                 var hdRow = summaryTable.AddRow();
                 hdRow.Borders.Visible = false;
-                hdRow.Cells[0].AddParagraph("Course Code Key").Format.Alignment= ParagraphAlignment.Left;
+                hdRow.Cells[0].AddParagraph("Course Code Key").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[1].AddParagraph("% Pass").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[2].AddParagraph("Grade").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[3].AddParagraph("Grade Level").Format.Alignment = ParagraphAlignment.Left;
@@ -1860,7 +1868,7 @@ namespace TranscriptGeneration.Services.Repositories
 
                 // Render the document
 
-                string filePath = Path.Combine(Environment.CurrentDirectory, $"{"Department"}{model.DepartmentId}{"Result"}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+                string filePath = Path.Combine(Environment.CurrentDirectory, $"TranscriptDr/{"Department"}{model.DepartmentId}{"Result"}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
                 pdfRenderer.PdfDocument.Save(filePath);
 
 
@@ -1868,15 +1876,53 @@ namespace TranscriptGeneration.Services.Repositories
 
                 string base64 = Convert.ToBase64String(fileBytes);
 
+                // -------
+
+
+                // Open an existing PDF document.
+                PdfDocument pdfDocument = PdfReader.Open(filePath, PdfDocumentOpenMode.Modify);
+
+                PdfPage page = pdfDocument.Pages[0];
+                // Create a graphics object to draw on the page.
+                XGraphics gfx = XGraphics.FromPdfPage(page);
+
+                using (var img = Image.Load(imagePath))
+                using (var ms = new MemoryStream())
+                {
+                    // Save the image as PNG into a memory stream
+                    img.Save(ms, new PngEncoder());
+                    ms.Position = 0;
+
+                    // PdfSharpCore expects a Func<Stream>, so wrap the stream
+                    var xImage = XImage.FromStream(() => new MemoryStream(ms.ToArray()));
+
+                    //220;
+
+                    double ImageWidth = 64;
+                    double ImageHeight = 64;
+                    double y = 20;
+                    double x = (page.Width.Point + ImageWidth + section.PageSetup.RightMargin + section.PageSetup.LeftMargin - img.Width) / 2; // + width;
+
+
+                    // Draw the image on the page.
+                    gfx.DrawImage(xImage, x, y, ImageWidth, ImageHeight);
+
+                    string outputFilePath = Path.Combine(Environment.CurrentDirectory, $"TranscriptDr/{"OutputDepartment"}{model.DepartmentId}{"Result"}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+
+
+                    pdfDocument.Save(outputFilePath);
+
+                    // Return the PDF as a byte array in the response
+
+                }
+
+
 
                 return new GeneralResponse { StatusCode = 200, Message = base64, Data = fileBytes };
 
             }
 
-             
-
             return new GeneralResponse { StatusCode = 200, Message = "No results found for the specified student.", Data = cmulative };
-
 
         }
 
