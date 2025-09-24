@@ -41,5 +41,7 @@ namespace ResultManager.Processor.Data
         public DbSet<StudentInfo> StudentInfo { get; set; }
         public DbSet<Sessions> Sessions { get; set; }
 
+        // Add Faculties, and Programs
+
     }
 }

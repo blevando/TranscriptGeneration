@@ -85,22 +85,7 @@ namespace TranscriptGeneration.Services.Repositories
 
         public async Task<GeneralResponse> GetSemesterResultAsync(string studentId, int SessionId, int DepartmentId, int SemesterId)
         {
-            //var results = await _context.StudentResultRawDetail
-            //                       .Where(c => c.DepartmentId == DepartmentId
-            //                       && c.SessionId ==  SessionId
-            //                       && c.SemesterId ==  SemesterId
-            //                       )
-            //                       .Select(sr => new
-            //                       {
-            //                           sr.MatricNumber,
-            //                           sr.CourseCode,
-            //                           sr.Units,
-            //                           sr.Score,
-            //                           sr.Grade
-            //                       })
-            //                       .OrderBy(x => x.MatricNumber)                                                                                                                                                   //   })
-            //                                                                                                                                              .OrderBy(x => x.MatricNumber)
-            //                       .ToListAsync();
+
 
 
 
@@ -115,7 +100,8 @@ namespace TranscriptGeneration.Services.Repositories
                     sr.CourseTitle,
                     sr.Units,
                     sr.Grade,
-                    sr.GradePoints
+                    sr.GradePoints,
+                    sr.Score
 
                 })
                 .OrderBy(sr => sr.CourseCode)
@@ -153,7 +139,7 @@ namespace TranscriptGeneration.Services.Repositories
                     trans.Title = $"{trans.Title} - session: {SessionId} ";
                 }
 
-                trans.Header = new ResultRecord { SN = "SN", CourseCode = "CourseCode", CourseTitle = "CourseTitle", CourseUnit = "CourseUnit", Grade = "Grade", GradePoint = "GradePoint" };
+                trans.Header = new ResultRecord { SN = "SN", CourseCode = "CourseCode", CourseTitle = "CourseTitle", Unit = "Unit", Score = "Score", Grade = "Grade", GradePoint = "GradePoint" };
                 trans.Body = new List<ResultRecord>();
                 int sn = 1;
                 List<string> list = new List<string>();
@@ -162,11 +148,11 @@ namespace TranscriptGeneration.Services.Repositories
                     ResultRecord resultRecord = new ResultRecord();
                     resultRecord.SN = sn.ToString("00");
                     resultRecord.CourseCode = item.CourseCode;
-                    resultRecord.CourseTitle = item.CourseTitle;
-                    resultRecord.CourseUnit = item.Units.ToString();
+                    resultRecord.CourseTitle = item.CourseTitle.ToUpper();
+                    resultRecord.Unit = item.Units.ToString();
                     resultRecord.Grade = item.Grade;
                     resultRecord.GradePoint = item.GradePoints.ToString();
-
+                    resultRecord.Score = item.Score.ToString();
                     int i = 0;
                     foreach (var body in trans.Body)
                     {
@@ -237,6 +223,7 @@ namespace TranscriptGeneration.Services.Repositories
                    sr.SessionId,
                    sr.DepartmentId,
                    sr.SemesterId,
+                   
                })
                .OrderBy(sr => sr.SessionId)
                .ThenBy(sr => sr.SemesterId)
@@ -321,15 +308,7 @@ namespace TranscriptGeneration.Services.Repositories
 
         }
 
-        //public async Task<GeneralResponse> GetTranscriptReportAsync(int SessionId, int DepartmentId, int SemesterId)
-        //{
-        //    return await Task.FromResult(new GeneralResponse
-        //    {
-        //        StatusCode = 200,
-        //        Message = "This method is not implemented yet."
-        //        // Data can be set to null or some default value if needed
-        //    });
-        //}
+
 
         private byte[] BuildDocument(InstitutionInfo studentTranascript)
         {
@@ -445,11 +424,17 @@ namespace TranscriptGeneration.Services.Repositories
             row.Cells[1].AddParagraph(studentTranascript.StudentInfo.MatricNumber);
             row.Shading.Color = Color.Parse("0x20D3D3D3");
 
-            // Row 3
-            row = studenttable.AddRow();
-            row.Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[0].AddParagraph("Admission Session").Format.Font.Bold = true;
-            row.Cells[1].AddParagraph(studentTranascript.StudentInfo.AdmittedSessionId);
+            var adSess = _context.Sessions.FirstOrDefaultAsync(s => s.SessionId.ToString() == studentTranascript.StudentInfo.AdmittedSessionId);
+            if (adSess != null)
+            {
+                // Row 3
+                row = studenttable.AddRow();
+                row.Format.Alignment = ParagraphAlignment.Left;
+                row.Cells[0].AddParagraph("Admission Session").Format.Font.Bold = true;
+                row.Cells[1].AddParagraph(adSess.Result.SessionName);
+            }
+
+             
 
             // Row 4
             row = studenttable.AddRow();
@@ -505,9 +490,10 @@ namespace TranscriptGeneration.Services.Repositories
                     table.AddColumn("1cm");  // SN
                     table.AddColumn("3cm");    // Course Code
                     table.AddColumn("7cm");  // Title
-                    table.AddColumn("1.5cm");    // Grade
-                    table.AddColumn("2cm");    // Unit
-                    table.AddColumn("4cm");    // Grade Point
+                    table.AddColumn("1.5cm");    // Unit
+                    table.AddColumn("1.5cm");    // Score
+                    table.AddColumn("1.5cm");    // Grade                    
+                    table.AddColumn("3cm");    // Grade Point
                                                //  table.Shading.Color = new Color(23, 5, 109, 0.3);
 
                     // ParagraphFormat paragraphFormat = new ParagraphFormat();
@@ -519,13 +505,15 @@ namespace TranscriptGeneration.Services.Repositories
 
 
                     row.Cells[0].AddParagraph(header.SN);
-                    row.Cells[1].AddParagraph(header.CourseCode);
+                    row.Cells[1].AddParagraph(header.CourseCode.ToUpper());
                     row.Cells[2].AddParagraph(header.CourseTitle);
                     row.Cells[2].Format.Alignment = ParagraphAlignment.Left;
 
-                    row.Cells[3].AddParagraph(header.Grade);
-                    row.Cells[4].AddParagraph("Unit");
-                    row.Cells[5].AddParagraph(header.GradePoint);
+                    row.Cells[3].AddParagraph(header.Unit);
+                    row.Cells[4].AddParagraph(header.Score);
+                    row.Cells[5].AddParagraph(header.Grade);
+
+                    row.Cells[6].AddParagraph(header.GradePoint);
 
 
                     int rowIndex = 1;
@@ -544,20 +532,39 @@ namespace TranscriptGeneration.Services.Repositories
 
                         row.Cells[0].AddParagraph(item.SN); //.Format.Alignment = ParagraphAlignment.Center;
 
-                        row.Cells[1].AddParagraph(item.CourseCode); //.Format.Alignment = ParagraphAlignment.Left;
-                        row.Cells[2].AddParagraph(item.CourseTitle); //.Format.Alignment = ParagraphAlignment.Left;
-                        row.Cells[2].Format.Alignment = ParagraphAlignment.Left;
+                        string courseCode = item.CourseCode.Trim().Length > 0 ?  item.CourseCode.Trim().ToUpper(): "";
 
-                        row.Cells[3].AddParagraph(item.Grade); //.Format.Alignment = ParagraphAlignment.Center;
-                        row.Cells[4].AddParagraph(item.CourseUnit); //.Format.Alignment = ParagraphAlignment.Center;
-                        row.Cells[5].AddParagraph(item.GradePoint); //.Format.Alignment = ParagraphAlignment.Center;
+                        row.Cells[1].AddParagraph(courseCode).Format.Alignment = ParagraphAlignment.Left; ;
+                        row.Cells[2].AddParagraph(item.CourseTitle).Format.Alignment = ParagraphAlignment.Left;
+
+                        row.Cells[3].AddParagraph(item.Unit); //.Format.Alignment = ParagraphAlignment.Center;
+
+                        string scoreStr = item.Score ?? "";
+                        if (scoreStr.Length > 0)
+                        {
+                            double scoreVal = double.Parse(scoreStr);
+                            scoreStr = scoreVal % 1 == 0 ? ((int)scoreVal).ToString() : scoreVal.ToString();
+                        }
+                         
+
+                        row.Cells[4].AddParagraph(scoreStr); //.Format.Alignment = ParagraphAlignment.Center;
+                        row.Cells[5].AddParagraph(item.Grade); //.Format.Alignment = ParagraphAlignment.Center;                        
+
+                        string gpStr = item.GradePoint ?? "";
+                        if (gpStr.Length > 0)
+                        {
+                            double sVal = double.Parse(gpStr);
+                            gpStr = sVal % 1 == 0 ? ((int)sVal).ToString() : sVal.ToString();
+                        }
+
+                        row.Cells[6].AddParagraph(gpStr); //.Format.Alignment = ParagraphAlignment.Center;
 
                         rowIndex++;
                     }
 
                     spacer = section.AddParagraph();
                     spacer.Format.SpaceAfter = "0.005cm";
-
+                    
                     var subfooter = section.AddParagraph();
                     subfooter.Format.Alignment = ParagraphAlignment.Left;
                     subfooter.Format.Font.Size = 10;
@@ -923,7 +930,7 @@ namespace TranscriptGeneration.Services.Repositories
 
             row = studenttable.AddRow();
             row.Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[0].AddParagraph("Section");
+            row.Cells[0].AddParagraph("Session");
             row.Cells[0].Format.Font.Bold = true;
             row.Cells[1].AddParagraph("2024-2025");
             row.Shading.Color = Color.Parse("0x10D3D3D3");
@@ -1531,7 +1538,7 @@ namespace TranscriptGeneration.Services.Repositories
                 {
                     //row.Cells[rowIndex].AddParagraph(ccodes[i]);
 
-
+                    string courseCd = ccodes[i].ToUpper();
                     var para = row.Cells[rowIndex].AddParagraph();
                     para.Format.Alignment = ParagraphAlignment.Center;
                     para.AddFormattedText(ccodes[i], TextFormat.Bold);
@@ -1547,7 +1554,7 @@ namespace TranscriptGeneration.Services.Repositories
 
 
                     row.Cells[rowIndex].Format.Font.Bold = true;
-                    row.Cells[rowIndex].Format.Font.Size = 8;
+                    row.Cells[rowIndex].Format.Font.Size = 7;
 
                     rowIndex = rowIndex + 1;
                 }
@@ -1697,11 +1704,10 @@ namespace TranscriptGeneration.Services.Repositories
                     row.Cells[k].AddParagraph(item.CGPA % 1 == 0 ? item.CGPA.ToString("0") : item.CGPA.ToString("0.##")).Format.Font.Bold = true; //.Format.Alignment = ParagraphAlignment.Center;
                     k++;
 
-                    //string cls = item.ClassOfDegree == null ? "" : item.ClassOfDegree;
-                      
+                    //string cls = item.ClassOfDegree == null ? "" : item.ClassOfDegree;                      
                     //if (item.Remarks.ToLower() != "pass")
                     //{
-                    //    cls = cls + item.Remarks;
+                    //    cls = cls + item.Remarks; 
                     //}
 
                     row.Cells[k].AddParagraph(item.Remarks).Format.Alignment = ParagraphAlignment.Left;
