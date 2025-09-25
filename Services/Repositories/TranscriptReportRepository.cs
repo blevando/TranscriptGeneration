@@ -242,6 +242,8 @@ namespace TranscriptGeneration.Services.Repositories
                     studentTransctript.UniversityLogo = "https://example.com/logo.png"; // Placeholder for logo URL
 
                     studentTransctript.StudentInfo = await _context.StudentInfo.FirstOrDefaultAsync(s => s.MatricNumber == studentId);
+
+                    
                     studentTransctript.SemesterData = new List<TranscriptModuleDto>();
                     foreach (var period in periodInformation)
                     {
@@ -437,17 +439,27 @@ namespace TranscriptGeneration.Services.Repositories
              
 
             // Row 4
-            row = studenttable.AddRow();
-            row.Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[0].AddParagraph("Faculty").Format.Font.Bold = true;
-            row.Cells[1].AddParagraph(studentTranascript.StudentInfo.FacultyId.ToString());
-            row.Shading.Color = Color.Parse("0x20D3D3D3");
+            var faculty = _context.Faculty.FirstOrDefaultAsync(s => s.FacultyId == studentTranascript.StudentInfo.FacultyId);
+            if (faculty != null)
+            {
+                 
 
-            // Row 5
-            row = studenttable.AddRow();
-            row.Format.Alignment = ParagraphAlignment.Left;
-            row.Cells[0].AddParagraph("Program").Format.Font.Bold = true;
-            row.Cells[1].AddParagraph(studentTranascript.StudentInfo.DepartmentId.ToString());
+                row = studenttable.AddRow();
+                row.Format.Alignment = ParagraphAlignment.Left;
+                row.Cells[0].AddParagraph("Faculty").Format.Font.Bold = true;
+                row.Cells[1].AddParagraph(faculty.Result.FacultyName);
+                row.Shading.Color = Color.Parse("0x20D3D3D3");
+            }
+           
+            var programme = _context.Programmes.FirstOrDefaultAsync(s => s.ProgrammeId == studentTranascript.StudentInfo.ProgrammeId );
+           
+            if (programme != null)
+            {
+                row = studenttable.AddRow();
+                row.Format.Alignment = ParagraphAlignment.Left;
+                row.Cells[0].AddParagraph("Program").Format.Font.Bold = true;
+                row.Cells[1].AddParagraph(programme.Result.ProgrammeName);
+            }
 
             // Row 6
             row = studenttable.AddRow();
@@ -592,17 +604,66 @@ namespace TranscriptGeneration.Services.Repositories
                 signatureParagraph.Format.SpaceBefore = "3cm";  // Push signature towards bottom
                 signatureParagraph.Format.Alignment = ParagraphAlignment.Left;
                 signatureParagraph.Format.Font.Size = 12;
+                signatureParagraph.Format.SpaceAfter = "14cm";
 
-                //var signatureImage = section.AddParagraph();
-                //signatureImage.AddImage("signature.png").Width = "3cm";
+                 signatureParagraph.AddLineBreak();
 
-                //// Draw the signature line
-                //signatureParagraph.AddLineBreak();
-                //signatureParagraph.AddText("_____________________");
+                // === Create Summary Table ===
+                var summaryTable = section.AddTable();
+                summaryTable.Format.Font.Size = 6;
+                summaryTable.Format.Alignment = ParagraphAlignment.Center;
 
-                //// Add "Registrar Signature" text under the line
-                //signatureParagraph.AddLineBreak();
-                //signatureParagraph.AddText("Registrar Signature");
+                // Remove all borders
+                summaryTable.Borders.Width = 0;
+                summaryTable.Borders.Visible = false;
+
+                // Define columns
+                //summaryTable.AddColumn(Unit.FromCentimeter(5)); // Course Code Key
+                //summaryTable.AddColumn(Unit.FromCentimeter(5)); // % Pass
+                summaryTable.AddColumn(Unit.FromCentimeter(5)); // Grade
+                summaryTable.AddColumn(Unit.FromCentimeter(5)); // Grade Level
+                summaryTable.AddColumn(Unit.FromCentimeter(5)); // CGPA
+                summaryTable.AddColumn(Unit.FromCentimeter(5)); // Classification
+
+
+
+                // === Add Header Row ===
+                var hdRow = summaryTable.AddRow();
+                hdRow.Borders.Visible = false;
+                //hdRow.Cells[0].AddParagraph("Course Code Key").Format.Alignment = ParagraphAlignment.Left;
+                //hdRow.Cells[1].AddParagraph("% Pass").Format.Alignment = ParagraphAlignment.Left;
+                hdRow.Cells[0].AddParagraph("Grade").Format.Alignment = ParagraphAlignment.Left;
+                hdRow.Cells[0].Format.Font.Bold = true;
+                
+                hdRow.Cells[1].AddParagraph("Grade Level").Format.Alignment = ParagraphAlignment.Left;
+                hdRow.Cells[1].Format.Font.Bold = true;
+
+                hdRow.Cells[2].AddParagraph("CGPA").Format.Alignment = ParagraphAlignment.Left;
+                hdRow.Cells[2].Format.Font.Bold = true;
+
+                hdRow.Cells[3].AddParagraph("Classification").Format.Alignment = ParagraphAlignment.Left;
+                hdRow.Cells[3].Format.Font.Bold = true;
+
+                // === Add Data Rows ===
+                string[,] gradeRows = {
+                                         {"A", "70.0 and Above", "4.50-5.00", "Distinction" },
+                                         {"B", "60.0-69.9", "4.00-4.49", "Pass" },
+                                         {"C", "55.0-59.9", "3.50-3.99", "Pass"},
+                                         {"C-", "50.0-54.9", "3.00-3.49", "Pass"},
+                                         {"F", "0-4.9", "0-2.99", "Fail"}
+                                       };
+
+                for (int i = 0; i < gradeRows.GetLength(0); i++)
+                {
+                    var rowx = summaryTable.AddRow();
+                    rowx.Borders.Visible = false;
+                    for (int j = 0; j < gradeRows.GetLength(1); j++)
+                    {
+                        rowx.Cells[j].AddParagraph(gradeRows[i, j]).Format.Alignment = ParagraphAlignment.Left;
+                    }
+                }
+
+
 
 
                 var footer = section.Footers.Primary.AddParagraph();
@@ -717,7 +778,7 @@ namespace TranscriptGeneration.Services.Repositories
                                 // Place signature image just above the line
                                 double imageHeight = 25;
                                 double imageWidth = 50;
-                                double imageX = 60; // left margin
+                                double imageX = 100; // left margin
                                 double imageY = underlineY - imageHeight - 5;
 
 
@@ -732,11 +793,11 @@ namespace TranscriptGeneration.Services.Repositories
                                 currentY += imageHeight + 5;
 
                                 // Underline
-                                gfx.DrawString("_________________________", font, XBrushes.Black, new XPoint(imageX, currentY));
-                                currentY += 12;
+                                gfx.DrawString("____________________", font, XBrushes.Black, new XPoint(imageX-40, currentY + 2));
+                                currentY += 10;
 
                                 // Label
-                                gfx.DrawString("Registrar Signature", font, XBrushes.Black, new XPoint(imageX, currentY));
+                                gfx.DrawString("Registrar Signature", font, XBrushes.Black, new XPoint(imageX-40, currentY + 8 ));
 
 
 

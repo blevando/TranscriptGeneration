@@ -40,7 +40,8 @@ namespace ResultManager.Processor.Data
         public DbSet<StudentResultSemesterSummary> StudentResultSemesterSummary { get; set; }
         public DbSet<StudentInfo> StudentInfo { get; set; }
         public DbSet<Sessions> Sessions { get; set; }
-
+        public DbSet<Faculty> Faculty { get; set; }
+        public DbSet<Programmes> Programmes { get; set; }
         // Add Faculties, and Programs
 
     }

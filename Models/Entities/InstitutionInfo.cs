@@ -5,7 +5,7 @@ namespace TranscriptGeneration.Models.Entities
 {
     public class InstitutionInfo
     {
-        public string SerialNumber { get; set; }
+        public string? SerialNumber { get; set; }
         public string? UniversityLogo { get; set; }
         public string? UniversityName { get; set; }
         public string? UniversityOffice { get; set; }
