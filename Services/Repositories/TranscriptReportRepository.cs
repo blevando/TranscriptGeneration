@@ -3,14 +3,18 @@ using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Writers;
 using Microsoft.SqlServer.Server;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Tables;
+//using MigraDoc.DocumentObjectModel;
+//using MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
@@ -1995,8 +1999,44 @@ namespace TranscriptGeneration.Services.Repositories
 
         public Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
         {
+            //We want to create a certificate with border
+           // var document = new Document();
+           // var section = document.AddSection();
+            
+           // // Seet all margins to zero
+           // section.PageSetup.PageFormat = PageFormat.A4;
+           // section.PageSetup.TopMargin = 0;
+           // section.PageSetup.BottomMargin = 0;
+           // section.PageSetup.LeftMargin = 0;
+           // section.PageSetup.RightMargin = 0;
+
+           // //The dimention of A4 : Width=594, height=842
+           // // this is same as Unit.FromMillimeter(210) and Unit.FromMillimeter(297)
+           // var pageWidth = Unit.FromMillimeter(210);
+           // var pageHeight = Unit.FromMillimeter(297);
+
+
+           // // Add the shape to the **primary header** so it appears on every page
+           // HeaderFooter header = section.Headers.Primary;
+           // Shape border = header.AddShape(ShapeType.Rectangle, pageWidth, pageHeight);
+           // border.LineFormat.Width = 2;
+           // border.LineFormat.Color = Colors.Black;
+           // // double width = section.PageSetup.PageWidth;
+           // var border = section.AddShape(ShapeType.Rectangle, pageWidth, pageHeight);
+           // border.LineFormat.Width = 2; // Border thickness
+           // border.LineFormat.Color = Colors.DarkRed; // Border color
+           // border.WrapFormat.Style = WrapStyle.None;
+           //// border.RelativeHorizontal = RelativeHorizontal.Page;
+
+           // border.Left = 0;
+           // border.Top = 0;
+           // border.RelativeHorizontal = RelativeHorizontal.Page;
+
+           // border.RelativeVertical = RelativeVertical.Page;
+
+
             throw new NotImplementedException();
-        }
+        }   
 
         public Task<GeneralResponse> GetManagementReportAsync(DepartmentResultDto model)
         {
