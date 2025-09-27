@@ -2017,10 +2017,12 @@ namespace TranscriptGeneration.Services.Repositories
             section.PageSetup.RightMargin = 0;
 
             // 2. Add certificate title
-            var paragraph = section.AddParagraph("Certificate of Graduation");
-            paragraph.Format.Font.Size = 24;
+            var paragraph = section.AddParagraph("James Hope University");
+            paragraph.Format.Font.Size = 28;
+            paragraph.Format.Font.Name = "Cambria";
+            paragraph.Format.Font.Color = Color.Parse("0xFF682C2C");
             paragraph.Format.Font.Bold = true;
-            paragraph.Format.SpaceBefore = "8cm";
+            paragraph.Format.SpaceBefore = "5cm";
             paragraph.Format.SpaceAfter = "1cm";
             paragraph.Format.Alignment = ParagraphAlignment.Center;
 
@@ -2051,18 +2053,54 @@ namespace TranscriptGeneration.Services.Repositories
 
                 //220;
 
-                double ImageWidth = 64;
-                double ImageHeight = 64;
-                double y = 20;
-                double x = (page.Width.Point + ImageWidth + section.PageSetup.RightMargin + section.PageSetup.LeftMargin - img.Width) / 2; // + width;
+                double ImageWidth = 70;
+                double ImageHeight = 70;
+                double y = 60;
+                double x = (page.Width.Point + 1.5 * ImageWidth + section.PageSetup.RightMargin + section.PageSetup.LeftMargin - img.Width) / 2; // + width;
 
 
                 // Draw the image on the page.
-                gfx.DrawImage(xImage, x, y, ImageWidth, ImageHeight);
+                gfx.DrawImage(xImage, x, y, ImageWidth, ImageHeight);         
+          
                 ms.Dispose();
 
             }
- 
+
+            //insert line
+
+            // Insert Logo
+
+            var linePath = Path.Combine(Environment.CurrentDirectory, "jhu-line2.png");
+             
+
+            using (var imgline = Image.Load(linePath))
+            using (var linems = new MemoryStream())
+            {
+                // Save the image as PNG into a memory stream
+                imgline.Save(linems, new PngEncoder());
+                linems.Position = 0;
+
+                // PdfSharpCore expects a Func<Stream>, so wrap the stream
+                var lineImage = XImage.FromStream(() => new MemoryStream(linems.ToArray()));
+
+                //220;
+
+                double lineWidth = 90;
+                double lineHeight = 10;
+                double y = 40;
+                double x = (page.Width.Point + lineWidth + section.PageSetup.RightMargin + section.PageSetup.LeftMargin - imgline.Width) / 2; // + width;
+
+
+                // Draw the image on the page.
+                gfx.DrawImage(lineImage, x, y, lineWidth, lineHeight);
+
+                linems.Dispose();
+
+            }
+
+
+
+
 
             // 
 
@@ -2071,30 +2109,30 @@ namespace TranscriptGeneration.Services.Repositories
 
             // Insert watermark image
 
-            //if (File.Exists(imagePath))
-            //{
-            //    XImage watermark = XImage.FromFile(imagePath);
+            if (File.Exists(linePath))
+            {
+                XImage watermark = XImage.FromFile(linePath);
 
-            //    double imageWidth = pageWidth * 0.6;
-            //    double imageHeight = pageHeight * 0.6;
+                 
+               
 
-            //    double centerX = (pageWidth - imageWidth) / 2;
-            //    double centerY = (pageHeight - imageHeight) / 2;
+                double centerX = (pageWidth - 240) / 2;
+                double centerY = (pageHeight) / 4.5;
 
-            //    gfx.DrawImage(watermark, centerX, centerY, imageWidth, imageHeight);
-            //}
+                gfx.DrawImage(watermark, centerX, centerY, 240, 10);
+            }
 
 
             // === Styles and dimensions ===
             double outerBorderThickness = 2;
             double innerBorderThickness = 4;
             double innerMargin = 10;
-            double cornerCircleRadius = XUnit.FromMillimeter(6);  // ~6mm circle radius
+            double cornerCircleRadius = XUnit.FromMillimeter(10);  // ~6mm circle radius
             double cornerSquareSize = XUnit.FromMillimeter(6);    // 6mm square
 
             var outerPen = new XPen(XColor.FromArgb(255, 128, 0, 0), outerBorderThickness); // Maroon
             var innerPen = new XPen(XColor.FromArgb(255, 104, 44, 44), innerBorderThickness); // Dark red
-            var circlePen = new XPen(XColors.Black, 0.8); // Thin black outline for circles
+            var circlePen = new XPen(XColors.Maroon, 2); // Thin black outline for circles
             var circleFill = XBrushes.White;              // White background
             var squareFill = XBrushes.White;
 
