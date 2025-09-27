@@ -1,4 +1,4 @@
-
+﻿
 using Microsoft.EntityFrameworkCore;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
  
@@ -33,6 +33,20 @@ namespace TranscriptGeneration
 
             builder.Services.AddDbContext<ApplicationDbContext>(a => a.UseSqlServer(connectionstrings));
 
+
+
+            // ✅ CORS Policy: Allow both React (5173) and CRA/Next (3000)
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowLocalFrontend", policy =>
+                {
+                    policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "http://72.55.189.248:6007", "http://72.55.189.248:6008")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials(); // For JWT or cookies
+                });
+            });
+
             //builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("connectionstring")));
 
             builder.Services.AddControllers();
@@ -47,11 +61,19 @@ namespace TranscriptGeneration
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+            //if (app.Environment.IsDevelopment())
+            //{
+            //    app.UseSwagger();
+            //    app.UseSwaggerUI();
+            //}
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
+            app.UseCors("AllowLocalFrontend"); // ✅ use the updated CORS policy here
+
+            app.UseDeveloperExceptionPage(); // only for debugging
+
 
             app.UseHttpsRedirection();
 
