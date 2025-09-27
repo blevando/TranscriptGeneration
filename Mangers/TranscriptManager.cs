@@ -64,7 +64,8 @@ namespace TranscriptGeneration.Mangers
 
         public Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
         {
-            throw new NotImplementedException();
+            var res = _transcript.GetStudentCertificateAsync(model);
+            return res;
         }
 
         public Task<GeneralResponse> GetManagementReportAsync(DepartmentResultDto model)

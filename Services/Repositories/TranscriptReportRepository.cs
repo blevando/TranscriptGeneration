@@ -3,14 +3,20 @@ using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Writers;
 using Microsoft.SqlServer.Server;
 using MigraDocCore.DocumentObjectModel;
 using MigraDocCore.DocumentObjectModel.MigraDoc.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Shapes;
 using MigraDocCore.DocumentObjectModel.Tables;
+using MigraDocCore.Rendering;
+
+//using MigraDoc.DocumentObjectModel;
+//using MigraDoc.DocumentObjectModel.Shapes;
 using PdfSharpCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Fonts;
@@ -223,7 +229,7 @@ namespace TranscriptGeneration.Services.Repositories
                    sr.SessionId,
                    sr.DepartmentId,
                    sr.SemesterId,
-                   
+
                })
                .OrderBy(sr => sr.SessionId)
                .ThenBy(sr => sr.SemesterId)
@@ -243,7 +249,7 @@ namespace TranscriptGeneration.Services.Repositories
 
                     studentTransctript.StudentInfo = await _context.StudentInfo.FirstOrDefaultAsync(s => s.MatricNumber == studentId);
 
-                    
+
                     studentTransctript.SemesterData = new List<TranscriptModuleDto>();
                     foreach (var period in periodInformation)
                     {
@@ -436,13 +442,13 @@ namespace TranscriptGeneration.Services.Repositories
                 row.Cells[1].AddParagraph(adSess.Result.SessionName);
             }
 
-             
+
 
             // Row 4
             var faculty = _context.Faculty.FirstOrDefaultAsync(s => s.FacultyId == studentTranascript.StudentInfo.FacultyId);
             if (faculty != null)
             {
-                 
+
 
                 row = studenttable.AddRow();
                 row.Format.Alignment = ParagraphAlignment.Left;
@@ -450,9 +456,9 @@ namespace TranscriptGeneration.Services.Repositories
                 row.Cells[1].AddParagraph(faculty.Result.FacultyName);
                 row.Shading.Color = Color.Parse("0x20D3D3D3");
             }
-           
-            var programme = _context.Programmes.FirstOrDefaultAsync(s => s.ProgrammeId == studentTranascript.StudentInfo.ProgrammeId );
-           
+
+            var programme = _context.Programmes.FirstOrDefaultAsync(s => s.ProgrammeId == studentTranascript.StudentInfo.ProgrammeId);
+
             if (programme != null)
             {
                 row = studenttable.AddRow();
@@ -544,7 +550,7 @@ namespace TranscriptGeneration.Services.Repositories
 
                         row.Cells[0].AddParagraph(item.SN); //.Format.Alignment = ParagraphAlignment.Center;
 
-                        string courseCode = item.CourseCode.Trim().Length > 0 ?  item.CourseCode.Trim().ToUpper(): "";
+                        string courseCode = item.CourseCode.Trim().Length > 0 ? item.CourseCode.Trim().ToUpper() : "";
 
                         row.Cells[1].AddParagraph(courseCode).Format.Alignment = ParagraphAlignment.Left; ;
                         row.Cells[2].AddParagraph(item.CourseTitle).Format.Alignment = ParagraphAlignment.Left;
@@ -557,7 +563,7 @@ namespace TranscriptGeneration.Services.Repositories
                             double scoreVal = double.Parse(scoreStr);
                             scoreStr = scoreVal % 1 == 0 ? ((int)scoreVal).ToString() : scoreVal.ToString();
                         }
-                         
+
 
                         row.Cells[4].AddParagraph(scoreStr); //.Format.Alignment = ParagraphAlignment.Center;
                         row.Cells[5].AddParagraph(item.Grade); //.Format.Alignment = ParagraphAlignment.Center;                        
@@ -576,7 +582,7 @@ namespace TranscriptGeneration.Services.Repositories
 
                     spacer = section.AddParagraph();
                     spacer.Format.SpaceAfter = "0.005cm";
-                    
+
                     var subfooter = section.AddParagraph();
                     subfooter.Format.Alignment = ParagraphAlignment.Left;
                     subfooter.Format.Font.Size = 10;
@@ -606,7 +612,7 @@ namespace TranscriptGeneration.Services.Repositories
                 signatureParagraph.Format.Font.Size = 12;
                 signatureParagraph.Format.SpaceAfter = "14cm";
 
-                 signatureParagraph.AddLineBreak();
+                signatureParagraph.AddLineBreak();
 
                 // === Create Summary Table ===
                 var summaryTable = section.AddTable();
@@ -634,7 +640,7 @@ namespace TranscriptGeneration.Services.Repositories
                 //hdRow.Cells[1].AddParagraph("% Pass").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[0].AddParagraph("Grade").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[0].Format.Font.Bold = true;
-                
+
                 hdRow.Cells[1].AddParagraph("Grade Level").Format.Alignment = ParagraphAlignment.Left;
                 hdRow.Cells[1].Format.Font.Bold = true;
 
@@ -793,11 +799,11 @@ namespace TranscriptGeneration.Services.Repositories
                                 currentY += imageHeight + 5;
 
                                 // Underline
-                                gfx.DrawString("____________________", font, XBrushes.Black, new XPoint(imageX-40, currentY + 2));
+                                gfx.DrawString("____________________", font, XBrushes.Black, new XPoint(imageX - 40, currentY + 2));
                                 currentY += 10;
 
                                 // Label
-                                gfx.DrawString("Registrar Signature", font, XBrushes.Black, new XPoint(imageX-40, currentY + 8 ));
+                                gfx.DrawString("Registrar Signature", font, XBrushes.Black, new XPoint(imageX - 40, currentY + 8));
 
 
 
@@ -1992,12 +1998,534 @@ namespace TranscriptGeneration.Services.Repositories
             return new GeneralResponse { StatusCode = 200, Message = "No results found for the specified student.", Data = cmulative };
 
         }
+        /// <summary>
+        /// //
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
 
-        public Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
+        public async Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
         {
-            throw new NotImplementedException();
+            // 1. Create the PDF document
+            var document = new Document();
+            var section = document.AddSection();
+            section.PageSetup.PageFormat = PageFormat.A4;
+            section.PageSetup.TopMargin = 0;
+            section.PageSetup.BottomMargin = 0;
+            section.PageSetup.LeftMargin = 0;
+            section.PageSetup.RightMargin = 0;
+
+            // 2. Add certificate title
+            var paragraph = section.AddParagraph("Certificate of Graduation");
+            paragraph.Format.Font.Size = 24;
+            paragraph.Format.Font.Bold = true;
+            paragraph.Format.SpaceBefore = "8cm";
+            paragraph.Format.SpaceAfter = "1cm";
+            paragraph.Format.Alignment = ParagraphAlignment.Center;
+
+            // 3. Render document to PDF
+            var renderer = new PdfDocumentRenderer(unicode: true);
+            renderer.Document = document;
+            renderer.RenderDocument();
+            var pdf = renderer.PdfDocument;
+
+            // 4. Set up graphics for drawing
+            var page = pdf.Pages[0];
+            var gfx = XGraphics.FromPdfPage(page);
+
+            // Insert Logo
+
+            var imagePath = Path.Combine(Environment.CurrentDirectory, "jhu.png");
+            var signaturePath = Path.Combine(Environment.CurrentDirectory, "registrar.png");
+
+            using (var img = Image.Load(imagePath))
+            using (var ms = new MemoryStream())
+            {
+                // Save the image as PNG into a memory stream
+                img.Save(ms, new PngEncoder());
+                ms.Position = 0;
+
+                // PdfSharpCore expects a Func<Stream>, so wrap the stream
+                var xImage = XImage.FromStream(() => new MemoryStream(ms.ToArray()));
+
+                //220;
+
+                double ImageWidth = 64;
+                double ImageHeight = 64;
+                double y = 20;
+                double x = (page.Width.Point + ImageWidth + section.PageSetup.RightMargin + section.PageSetup.LeftMargin - img.Width) / 2; // + width;
+
+
+                // Draw the image on the page.
+                gfx.DrawImage(xImage, x, y, ImageWidth, ImageHeight);
+                ms.Dispose();
+
+            }
+ 
+
+            // 
+
+            double pageWidth = XUnit.FromMillimeter(210);  // A4 width
+            double pageHeight = XUnit.FromMillimeter(297); // A4 height
+
+            // Insert watermark image
+
+            //if (File.Exists(imagePath))
+            //{
+            //    XImage watermark = XImage.FromFile(imagePath);
+
+            //    double imageWidth = pageWidth * 0.6;
+            //    double imageHeight = pageHeight * 0.6;
+
+            //    double centerX = (pageWidth - imageWidth) / 2;
+            //    double centerY = (pageHeight - imageHeight) / 2;
+
+            //    gfx.DrawImage(watermark, centerX, centerY, imageWidth, imageHeight);
+            //}
+
+
+            // === Styles and dimensions ===
+            double outerBorderThickness = 2;
+            double innerBorderThickness = 4;
+            double innerMargin = 10;
+            double cornerCircleRadius = XUnit.FromMillimeter(6);  // ~6mm circle radius
+            double cornerSquareSize = XUnit.FromMillimeter(6);    // 6mm square
+
+            var outerPen = new XPen(XColor.FromArgb(255, 128, 0, 0), outerBorderThickness); // Maroon
+            var innerPen = new XPen(XColor.FromArgb(255, 104, 44, 44), innerBorderThickness); // Dark red
+            var circlePen = new XPen(XColors.Black, 0.8); // Thin black outline for circles
+            var circleFill = XBrushes.White;              // White background
+            var squareFill = XBrushes.White;
+
+            // === 5. Draw outer rectangle and corner circles ===
+            DrawRectangleWithCornerOutlines(
+                gfx,
+                outerPen,
+                circlePen,
+                circleFill,
+                outerBorderThickness / 2,
+                outerBorderThickness / 2,
+                pageWidth - outerBorderThickness,
+                pageHeight - outerBorderThickness,
+                cornerCircleRadius
+            );
+
+            // === 6. Draw inner rectangle ===
+            double innerX = innerMargin;
+            double innerY = innerMargin;
+            double innerWidth = pageWidth - 2 * innerMargin;
+            double innerHeight = pageHeight - 2 * innerMargin;
+
+            gfx.DrawRectangle(innerPen, innerX, innerY, innerWidth, innerHeight);
+
+            // === 7. Draw white squares at inner corners ===
+            DrawInnerCornerSquares(gfx, squareFill, innerX, innerY, innerWidth, innerHeight, cornerSquareSize);
+
+            // === 8. Save and return PDF ===
+            string fileName = $"Certificate_{model.MatricNumber}_{DateTime.Now:yyyyMMddHHmmssfff}.pdf";
+            string filePath = Path.Combine(Environment.CurrentDirectory, "TranscriptDr", fileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+            //Secure the PDF
+
+            //pdf.SecuritySettings.UserPassword = "viewonly";
+            //pdf.SecuritySettings.OwnerPassword = "admin123";
+
+            //// Restrict capabilities
+            //pdf.SecuritySettings.PermitPrint = false;
+            //pdf.SecuritySettings.PermitModifyDocument = false;
+            ////pdf.SecuritySettings.PermitCopyContent = false;
+            //pdf.SecuritySettings.PermitAnnotations = false;
+
+            //Embed some info
+
+            pdf.Info.Author = "James Hope University";
+            pdf.Info.Subject = "JHU School of Business";
+            pdf.Info.Keywords = "Certificate, Graduation, Authenticated";
+            pdf.Info.CreationDate = DateTime.Now;
+             
+            // Insert a QR Code
+
+
+            pdf.Save(filePath);
+
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64 = Convert.ToBase64String(fileBytes);
+
+            return new GeneralResponse
+            {
+                StatusCode = 200,
+                Message = base64,
+                Data = fileBytes
+            };
         }
 
+        private void DrawRectangleWithCornerOutlines( XGraphics gfx, XPen rectanglePen, XPen circlePen,  XBrush circleFill, double x, double y, double width, double height, double cornerCircleRadius)
+        {
+            // 1. Draw the outer rectangle
+            gfx.DrawRectangle(rectanglePen, x, y, width, height);
+
+            // 2. Define corner centers
+            var corners = new (double cx, double cy)[]
+            {
+                (x, y),                       // Top-left
+                (x + width, y),              // Top-right
+                (x + width, y + height),     // Bottom-right
+                (x, y + height)              // Bottom-left
+            };
+
+            double diameter = cornerCircleRadius * 2;
+
+            // 3. Draw circle at each corner
+            foreach (var (cx, cy) in corners)
+            {
+                double circleX = cx - cornerCircleRadius;
+                double circleY = cy - cornerCircleRadius;
+
+                gfx.DrawEllipse(circleFill, circleX, circleY, diameter, diameter); // Fill
+                gfx.DrawEllipse(circlePen, circleX, circleY, diameter, diameter); // Outline
+            }
+        }
+
+
+        private void DrawInnerCornerSquares( XGraphics gfx, XBrush fill, double x, double y, double width, double height, double squareSize)
+        {
+            double s = squareSize;
+
+            double offset = XUnit.FromMillimeter(1); // Inset the square inward
+
+            var corners = new (double sx, double sy)[]
+            {
+                    (x + offset, y + offset),                                 // Top-left
+                    (x + width - s - offset, y + offset),                     // Top-right
+                    (x + width - s - offset, y + height - s - offset),        // Bottom-right
+                    (x + offset, y + height - s - offset)                     // Bottom-left
+            };
+
+            foreach (var (sx, sy) in corners)
+            {
+                gfx.DrawRectangle(fill, sx, sy, s, s);
+            }
+        }
+
+
+        //    public async Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
+        //    {
+        //        // 1. Create PDF document
+        //        var document = new Document();
+        //        var section = document.AddSection();
+        //        section.PageSetup.PageFormat = PageFormat.A4;
+        //        section.PageSetup.TopMargin = 0;
+        //        section.PageSetup.BottomMargin = 0;
+        //        section.PageSetup.LeftMargin = 0;
+        //        section.PageSetup.RightMargin = 0;
+
+        //        // 2. Add certificate title
+        //        var paragraph = section.AddParagraph("Certificate of Graduation");
+        //        paragraph.Format.Font.Size = 24;
+        //        paragraph.Format.Font.Bold = true;
+        //        paragraph.Format.SpaceBefore = "8cm";
+        //        paragraph.Format.SpaceAfter = "1cm";
+
+        //        // 3. Render PDF
+        //        var renderer = new PdfDocumentRenderer(unicode: true);
+        //        renderer.Document = document;
+        //        renderer.RenderDocument();
+        //        var pdf = renderer.PdfDocument;
+
+        //        // 4. Prepare drawing surface
+        //        var page = pdf.Pages[0];
+        //        var gfx = XGraphics.FromPdfPage(page);
+
+        //        double pageWidth = XUnit.FromMillimeter(210);  // A4 width
+        //        double pageHeight = XUnit.FromMillimeter(297); // A4 height
+
+        //        // === Drawing parameters ===
+        //        double outerBorderThickness = 2;
+        //        double innerBorderThickness = 4;
+        //        double cornerCircleRadius = 12;  // radius for corner-covering circles
+        //        double innerMargin = 10;         // margin from outer border to inner rectangle
+
+        //        var outerPen = new XPen(XColor.FromArgb(255, 128, 0, 0), outerBorderThickness); // Maroon
+        //        var innerPen = new XPen(XColor.FromArgb(255, 104, 44, 44), innerBorderThickness); // Dark red
+
+        //        // === Step 1: Outer rectangle with circular caps ===
+        //        DrawRectangleWithCornerCircles(
+        //            gfx,
+        //            outerPen,
+        //            XBrushes.White, // Fill color to "hide" corners
+        //            outerBorderThickness / 2,
+        //            outerBorderThickness / 2,
+        //            pageWidth - outerBorderThickness,
+        //            pageHeight - outerBorderThickness,
+        //            cornerCircleRadius
+        //        );
+
+        //        // === Step 2: Inner rectangle ===
+        //        gfx.DrawRectangle(
+        //            innerPen,
+        //            innerMargin,
+        //            innerMargin,
+        //            pageWidth - 2 * innerMargin,
+        //            pageHeight - 2 * innerMargin
+        //        );
+
+        //        // === Step 3: Save and return PDF ===
+        //        string fileName = $"Certificate_{model.MatricNumber}_{DateTime.Now:yyyyMMddHHmmssfff}.pdf";
+        //        string filePath = Path.Combine(Environment.CurrentDirectory, "TranscriptDr", fileName);
+        //        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        //        pdf.Save(filePath);
+
+        //        byte[] fileBytes = File.ReadAllBytes(filePath);
+        //        string base64 = Convert.ToBase64String(fileBytes);
+
+        //        return new GeneralResponse
+        //        {
+        //            StatusCode = 200,
+        //            Message = base64,
+        //            Data = fileBytes
+        //        };
+        //    }
+        //    private void DrawRectangleWithCornerCircles(
+        //XGraphics gfx,
+        //XPen borderPen,
+        //XBrush cornerFill,
+        //double x,
+        //double y,
+        //double width,
+        //double height,
+        //double cornerCircleRadius)
+        //    {
+        //        // 1. Draw the full outer rectangle
+        //        gfx.DrawRectangle(borderPen, x, y, width, height);
+
+        //        // 2. Coordinates for corners
+        //        var corners = new (double cx, double cy)[]
+        //        {
+        //    (x, y),                          // Top-left
+        //    (x + width, y),                 // Top-right
+        //    (x + width, y + height),        // Bottom-right
+        //    (x, y + height),                // Bottom-left
+        //        };
+
+        //        // 3. Draw white-filled circles centered on each corner
+        //        foreach (var (cx, cy) in corners)
+        //        {
+        //            double circleX = cx - cornerCircleRadius;
+        //            double circleY = cy - cornerCircleRadius;
+        //            double diameter = cornerCircleRadius * 2;
+
+        //            gfx.DrawEllipse(cornerFill, circleX, circleY, diameter, diameter);
+        //        }
+        //    }
+
+
+        //private void DrawRectangleWithCircularCutouts(
+        //  XGraphics gfx,
+        //  XPen pen,
+        //  XBrush fill, 
+        //  double x,
+        //  double y,
+        //  double width,
+        //  double height,
+        //  double radius)
+        //      {
+        //          var path = new XGraphicsPath();
+
+        //          // Rectangle edges (adjusted to leave room for arcs)
+        //          double left = x + radius;
+        //          double top = y + radius;
+        //          double right = x + width - radius;
+        //          double bottom = y + height - radius;
+
+        //          path.StartFigure();
+
+        //          // Top edge
+        //          path.AddLine(left, y, right, y);
+        //          path.AddArc(x + width - 2 * radius, y, 2 * radius, 2 * radius, 270, -90); // Top-right
+
+        //          // Right edge
+        //          path.AddLine(x + width, top, x + width, bottom);
+        //          path.AddArc(x + width - 2 * radius, y + height - 2 * radius, 2 * radius, 2 * radius, 0, -90); // Bottom-right
+
+        //          // Bottom edge
+        //          path.AddLine(right, y + height, left, y + height);
+        //          path.AddArc(x, y + height - 2 * radius, 2 * radius, 2 * radius, 90, -90); // Bottom-left
+
+        //          // Left edge
+        //          path.AddLine(x, bottom, x, top);
+        //          path.AddArc(x, y, 2 * radius, 2 * radius, 180, -90); // Top-left
+
+        //          path.CloseFigure();
+
+        //          // gfx.DrawPath(pen, fill, path);
+        //      }
+
+
+        //public async Task<GeneralResponse> GetStudentCertificateAsync(StudentCertificateDto model)
+        //{
+        //    //We want to create a certificate with border
+        //    var document = new Document();
+        //    var section = document.AddSection();
+
+        //    //Seet all margins to zero
+        //    section.PageSetup.PageFormat = PageFormat.A4;
+        //    section.PageSetup.TopMargin = 0;
+        //    section.PageSetup.BottomMargin = 0;
+        //    section.PageSetup.LeftMargin = 0;
+        //    section.PageSetup.RightMargin = 0;
+
+        //    var paragraph = section.AddParagraph("Certificate of graduation");
+        //    paragraph.Format.Font.Size = 24;
+        //    paragraph.Format.Font.Bold = true;
+
+        //    paragraph.Format.SpaceBefore = "8cm";
+        //    paragraph.Format.SpaceAfter = "1cm";
+
+        //    var renderer = new PdfDocumentRenderer(unicode: true);
+
+
+        //    renderer.Document = document;
+        //    renderer.RenderDocument();
+        //    var pdf = renderer.PdfDocument;
+
+        //    var page = pdf.Pages[0];
+        //    var gfx = XGraphics.FromPdfPage(page);
+
+        //    double pageWidth = XUnit.FromMillimeter(210);
+        //    double pageHeight = XUnit.FromMillimeter(297);
+
+        //    double outThickness = 2;
+
+        //    double inThickness = 2;
+
+        //    var maroon = new XPen(XColor.FromArgb(255, 128, 0, 0), outThickness);
+
+        //    gfx.DrawRectangle(maroon, outThickness / 2, outThickness / 2, pageWidth - outThickness, pageHeight - outThickness);
+
+
+        //    //var darkRed = new XPen(XColor.FromArgb(255, 139, 0, 0), inThickness);
+        //    double innerMargin = 7;// from ourterMargin // outThickness + (inThickness / 2);
+
+        //    double innewThickness = 4;// outThickness + inThickness;
+        //    double cornerRadius = 3;
+
+        //    var innerPen = new XPen(XColor.FromArgb(255, 104, 44, 44), innewThickness); // Dark red color
+
+        //    DrawInsetRoundedRectangle(gfx, innerPen, innerMargin,innerMargin, pageWidth - (2 * innerMargin), pageHeight - (2 * innerMargin), cornerRadius);
+
+
+        //  string   filePath = Path.Combine(Environment.CurrentDirectory, $"TranscriptDr/{"Certificate"}{model.MatricNumber}-{DateTime.Now.ToString("yyyyMMddHHmmssfff")}.pdf");
+
+
+        //    pdf.Save(filePath);
+
+
+        //    byte[] fileBytes = File.ReadAllBytes(filePath);
+
+        //    string base64 = Convert.ToBase64String(fileBytes);
+        //    return  new GeneralResponse { StatusCode = 200, Message =  base64, Data = fileBytes };
+        //}
+
+        //private void DrawInsetRoundedRectangle(XGraphics gfx, XPen pen, XBrush fill, double x, double y, double width, double height, double radius)
+        //{
+        //    var path = new XGraphicsPath();
+
+        //    // Calculate adjusted rectangle size
+        //    double left = x + radius;
+        //    double top = y + radius;
+        //    double right = x + width - radius;
+        //    double bottom = y + height - radius;
+
+        //    // Start path at top-left after arc
+        //    path.StartFigure();
+
+        //    // Top edge (left to right)
+        //    path.AddLine(left, y, right, y);
+
+        //    // Top-right arc (concave)
+        //    path.AddArc(x + width - 2 * radius, y, 2 * radius, 2 * radius, 270, -90);
+
+        //    // Right edge (top to bottom)
+        //    path.AddLine(x + width, top, x + width, bottom);
+
+        //    // Bottom-right arc
+        //    path.AddArc(x + width - 2 * radius, y + height - 2 * radius, 2 * radius, 2 * radius, 0, -90);
+
+        //    // Bottom edge (right to left)
+        //    path.AddLine(right, y + height, left, y + height);
+
+        //    // Bottom-left arc
+        //    path.AddArc(x, y + height - 2 * radius, 2 * radius, 2 * radius, 90, -90);
+
+        //    // Left edge (bottom to top)
+        //    path.AddLine(x, bottom, x, top);
+
+        //    // Top-left arc
+        //    path.AddArc(x, y, 2 * radius, 2 * radius, 180, -90);
+
+        //    // Close path
+        //    path.CloseFigure();
+
+        //    // Fill and draw
+        //    gfx.DrawPath(pen, fill, path);
+        //}
+
+
+        //private void DrawInsetRoundedRectangle(XGraphics gfx, XPen pen, double x, double y, double width, double height, double radius)
+        //{
+        //    var path = new XGraphicsPath();
+
+        //    // Start drawing a new figure
+        //    path.StartFigure();
+
+        //    // Top edge
+        //    path.AddLine(x + radius, y, x + width - radius, y);
+        //    path.AddArc(x + width - 2 * radius, y, 2 * radius, 2 * radius, 270, -90); // Top-right concave
+
+        //    // Right edge
+        //    path.AddLine(x + width, y + radius, x + width, y + height - radius);
+        //    path.AddArc(x + width - 2 * radius, y + height - 2 * radius, 2 * radius, 2 * radius, 0, -90); // Bottom-right concave
+
+        //    // Bottom edge
+        //    path.AddLine(x + width - radius, y + height, x + radius, y + height);
+        //    path.AddArc(x, y + height - 2 * radius, 2 * radius, 2 * radius, 90, -90); // Bottom-left concave
+
+        //    // Left edge
+        //    path.AddLine(x, y + height - radius, x, y + radius);
+        //    path.AddArc(x, y, 2 * radius, 2 * radius, 180, -90); // Top-left concave
+
+        //    // Close the path
+        //    path.CloseFigure();
+
+        //    // Draw the path
+        //    gfx.DrawPath(pen, path);
+        //}
+
+        //private void DrawRoundedRectangle(XGraphics gfx, XPen innerPen, double x, double y, double width, double height, double radius)
+        //{
+        //     var path = new XGraphicsPath();
+        //    path.AddArc(x, y, radius * 2, radius * 2, 180, 90); // Top-left corner
+        //    path.AddLine(x + radius, y, x + width - radius, y); // Top-edge
+
+        //    path.AddArc(x + width - radius * 2, y, radius * 2, radius * 2, 270, 90); // Top-right corner
+        //    path.AddLine(x + width, y + radius, x + width, y + height - radius); // Right-edge
+
+        //    path.AddArc(x + width - radius * 2, y + height - radius * 2, radius * 2, radius * 2, 0, 90); // Bottom-right corner
+        //    path.AddLine(x + width - radius, y + height, x + radius, y + height); // Bottom-edge
+
+        //    path.AddArc(x, y + height - radius * 2, radius * 2, radius * 2, 90, 90); // Bottom-left corner
+        //    path.AddLine(x, y + height - radius, x, y + radius); // Left-edge
+
+        //    //Close and draw
+        //    path.CloseFigure();
+
+        //    gfx.DrawPath(innerPen, path);       
+
+
+
+        //}
         public Task<GeneralResponse> GetManagementReportAsync(DepartmentResultDto model)
         {
             throw new NotImplementedException();

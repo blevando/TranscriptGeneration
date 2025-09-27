@@ -162,6 +162,14 @@ namespace TranscriptGeneration.Controllers
             return StatusCode(res.StatusCode, res);
         }
 
+        [HttpPost]
+        [Route("GetStudentCertificate")]
+        public async Task<IActionResult> GetStudentCertificateAsync([FromBody] StudentCertificateDto model)
+        {
+            var res = await _trans.GetStudentCertificateAsync(model);
+            return StatusCode(res.StatusCode, res);
+        }
+
         // GET: Final GPA/CGPA
         [HttpGet("GetFinalGPACGP/{studentId}/{departmentId}")]
         private async Task<IActionResult> GetFinalGPACGPAsync(string studentId, int departmentId)
